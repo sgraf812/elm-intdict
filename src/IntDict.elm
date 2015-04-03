@@ -9,6 +9,37 @@ module IntDict
     , toString'
     ) where
 
+{-| `IntDict` is an optimized version of a `Dict` with `Int` as key type. 
+
+Its API is modeled `Dict`, so it can mostly regarded as a drop-in replacement[1].
+If you are comfortable with `Dict`, working with `IntDict` should be a breeze!
+
+#Technicalities
+
+This library is inspired by Haskells [IntMap](http://hackage.haskell.org/package/containers-0.2.0.1/docs/Data-IntMap.html), 
+which in turn implements Okasaki and Gill's [Fast mergable integer maps](http://ittc.ku.edu/~andygill/papers/IntMap98.pdf).
+
+As noted in the references, here are some runtimes (W is the number of bits in `Int`, a constant!):
+
+*O(min(n, W))*: `insert`, `update`, `remove`, `get`, `member` 
+
+[1] with the exception of giving no guarantee on the ordering of the lists
+returned by various functions such as `fromList`, `keys` and `values`.
+Also traversal order such as with `foldl` and `foldr` is unspecified in the same way.
+
+# Build
+@docs empty, singleton, insert, update, remove
+# Query
+@docs member, get
+# Combine
+@docs union, intersect, diff
+# Lists
+@docs keys, values, toList, fromList
+# Transform
+@docs map, foldl, foldr, filter, partition
+
+-}
+
 import Bitwise
 import Maybe (Maybe (..))
 import List
