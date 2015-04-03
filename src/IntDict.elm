@@ -20,10 +20,10 @@ type alias KeyPrefix =
     }
 
 
-type IntDict a
+type IntDict v
     = Empty
-    | Leaf { key : Int, value : a }
-    | Inner { prefix : KeyPrefix, left : IntDict a, right : IntDict a }
+    | Leaf { key : Int, value : v }
+    | Inner { prefix : KeyPrefix, left : IntDict v, right : IntDict v }
 
 
 isValidKey : Int -> Bool
@@ -35,16 +35,8 @@ isValidKey n =              -- perform some dirty JS magic to turn the double
 
 -- SMART CONSTRUCTORS
 
-empty : IntDict a
-empty = Empty
 
-
-singleton : Int -> a -> IntDict a
-singleton k v =
-    leaf k v
-
-
-inner : KeyPrefix -> IntDict a -> IntDict a -> IntDict a
+inner : KeyPrefix -> IntDict v -> IntDict v -> IntDict v
 inner p l r =
     case (l, r) of
         (Empty, _) -> r
@@ -56,12 +48,13 @@ inner p l r =
             }
 
 
-leaf : Int -> a -> IntDict a
+leaf : Int -> v -> IntDict v
 leaf k v = Leaf
     { key = k
     , value = v
     }
 
+-- SOME PRIMITIVES
 
 {-| Consider a branchingBit of 2^4 = 16 = 0b00010000.
 Then branchingBit*2-1 = 2^5-1  = 31 = 0b00011111,
@@ -80,45 +73,6 @@ prefixMatches p n =
 isBranchingBitSet : KeyPrefix -> Int -> Bool
 isBranchingBitSet p n =
     n `Bitwise.and` p.branchingBit /= 0
-
-
-member : Int -> IntDict a -> Bool
-member k dict = 
-    case get k dict of
-        Just _ -> True
-        Nothing -> False
-
-
-get : Int -> IntDict a -> Maybe a
-get k dict =
-    case dict of
-        Empty ->
-            Nothing
-        Leaf l ->
-            if l.key == k
-            then Just l.value
-            else Nothing
-        Inner i ->
-            if not (prefixMatches i.prefix k)
-            then Nothing
-            else if isBranchingBitSet i.prefix k    -- continue in left or right branch, 
-                 then get k i.right              -- depending on whether the branching 
-                 else get k i.left               -- bit is set in the key
-
-
-type SafeLookupResult a
-    = FoundValue a
-    | NotFound
-    | InvalidKey
-
-
-safeGet : Int -> IntDict a -> SafeLookupResult a
-safeGet k dict =
-    if not (isValidKey k)
-    then InvalidKey
-    else case get k dict of
-        Just v -> FoundValue v
-        Nothing -> NotFound
 
 
 {-| Compute the longest common prefix of two keys.
@@ -154,31 +108,42 @@ lcp x y =
         , branchingBit = branchingBit 
         }
 
-{- precondition: k1 /= k2 -}
-join : (Int, IntDict a) -> (Int, IntDict a) -> IntDict a
-join (k1, d1) (k2, d2) =
-    let prefix = lcp k1 k2
-    in if isBranchingBitSet prefix k2 -- if so, d2 will be the right child
-       then inner prefix d1 d2
-       else inner prefix d2 d1
+
+-- BUILD
 
 
-insert : Int -> a -> IntDict a -> IntDict a
+empty : IntDict v
+empty = Empty
+
+
+singleton : Int -> v -> IntDict v
+singleton k v =
+    leaf k v
+
+
+insert : Int -> v -> IntDict v -> IntDict v
 insert k v dict =
     update k (always (Just v)) dict
 
 
-remove : Int -> IntDict a -> IntDict a
+remove : Int -> IntDict v -> IntDict v
 remove k dict =
     update k (always Nothing) dict
 
 
-update : Int -> (Maybe a -> Maybe a) -> IntDict a -> IntDict a
+update : Int -> (Maybe v -> Maybe v) -> IntDict v -> IntDict v
 update k alter dict =
     let alteredNode v = 
-            case alter v of -- handle this centrally
+            case alter v of                                     -- handle this centrally
                 Just v' -> leaf k v'
-                Nothing -> empty -- The inner constructor will do the rest
+                Nothing -> empty                                -- The inner constructor will do the rest
+
+        join (k1, d1) (k2, d2) =                                -- precondition: k1 /= k2
+            let prefix = lcp k1 k2
+            in if isBranchingBitSet prefix k2                   -- if so, d2 will be the right child
+               then inner prefix d1 d2
+               else inner prefix d2 d1
+
     in case dict of
         Empty -> 
            alteredNode Nothing
@@ -193,6 +158,36 @@ update k alter dict =
                  else inner i.prefix (update k alter i.left) i.right
             else -- we have to join a new leaf with the current diverging Inner node
                 join (k, alteredNode Nothing) (i.prefix.prefixBits, dict)
+
+
+-- QUERY
+
+
+member : Int -> IntDict v -> Bool
+member k dict = 
+    case get k dict of
+        Just _ -> True
+        Nothing -> False
+
+
+get : Int -> IntDict v -> Maybe v
+get k dict =
+    case dict of
+        Empty ->
+            Nothing
+        Leaf l ->
+            if l.key == k
+            then Just l.value
+            else Nothing
+        Inner i ->
+            if not (prefixMatches i.prefix k)
+            then Nothing
+            else if isBranchingBitSet i.prefix k -- continue in left or right branch, 
+                 then get k i.right              -- depending on whether the branching 
+                 else get k i.left               -- bit is set in the key
+
+
+-- TRANSFORM
 
 
 {-| Keep a key-value pair when it satisfies a predicate. -}
@@ -247,6 +242,9 @@ partition predicate dict =
         foldl add (empty, empty) dict
 
 
+-- COMBINE
+
+
 {-| Combine two dictionaries. If there is a collision, preference is given
 to the first dictionary. -}
 union : IntDict v -> IntDict v -> IntDict v
@@ -268,6 +266,9 @@ diff t1 t2 =
     foldl (\k v t -> remove k t) t1 t2
 
 
+-- LISTS
+
+
 {-| Get all of the keys in a dictionary. -}
 keys : IntDict v -> List Int
 keys dict =
@@ -280,16 +281,19 @@ values dict =
     foldr (\key value valueList -> value :: valueList) [] dict
 
 
-fromList : List (Int, a) -> IntDict a
+fromList : List (Int, v) -> IntDict v
 fromList pairs =
     let insert' (k, v) dict = insert k v dict
     in List.foldl insert' empty pairs
 
 
-toList : IntDict a -> List (Int, a)
+toList : IntDict v -> List (Int, v)
 toList dict = 
     foldr (\key value list -> (key, value) :: list) [] dict
 
 
-toString' : IntDict a -> String
+-- STRING REPRESENTATION
+
+
+toString' : IntDict v -> String
 toString' dict = "IntDict.fromList " ++ toString (toList dict)
