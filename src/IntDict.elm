@@ -55,10 +55,18 @@ type alias KeyPrefix =
     }
 
 
+-- only so that we don't repeat ourselves
+type alias InnerType v = 
+    { prefix : KeyPrefix
+    , left : IntDict v
+    , right : IntDict v
+    }
+
+
 type IntDict v
     = Empty
     | Leaf { key : Int, value : v }
-    | Inner { prefix : KeyPrefix, left : IntDict v, right : IntDict v }
+    | Inner (InnerType v)
 
 
 {-| Validates that a given integer is usable as a key.
@@ -105,14 +113,14 @@ leaf k v = Leaf
 Then branchingBit*2-1 = 2^5-1  = 31 = 0b00011111,
 Now apply bitwise NOT to get the mask 0b11100000.
 -}
-bitMask : KeyPrefix -> Int
-bitMask p =
-    Bitwise.complement <| p.branchingBit*2 - 1
+higherBitMask : Int -> Int
+higherBitMask branchingBit =
+    Bitwise.complement <| branchingBit*2 - 1
 
 
 prefixMatches : KeyPrefix -> Int -> Bool
 prefixMatches p n =
-    n `Bitwise.and` bitMask p == p.prefixBits
+    n `Bitwise.and` higherBitMask p.branchingBit == p.prefixBits
 
 
 {- Clear all bits other than the highest in n.
@@ -144,10 +152,13 @@ Find the highest bit not set in
 lcp : Int -> Int -> KeyPrefix
 lcp x y =
     let diff = x `Bitwise.xor` y
-        prefix = { prefixBits = 0, branchingBit = highestBitSet diff }
-        mask = bitMask prefix   -- feels hacky, because prefixBits isn't yet set
+        branchingBit = highestBitSet diff 
+        mask = higherBitMask prefix   -- feels hacky, because prefixBits isn't yet set
         prefixBits = x `Bitwise.and` mask   -- should equal y & mask
-    in { prefix | prefixBits <- prefixBits }  -- branchingBit is already set
+    in 
+        { prefixBits = prefixBits
+        , branchingBit = branchingBit 
+        }
 
 
 signBit : Int
@@ -308,25 +319,56 @@ partition predicate dict =
 
 -- COMBINE
 
+type InnerRelation v
+    = Same
+    | LeftChild { p : InnerType v, l : InnerType v }
+    | RightChild { p : InnerType v, r : InnerType v }
+    | Siblings { parentPrefix : KeyPrefix, l : InnerType v, r : InnerType v }
+
+
+forceBitMaskMismatch : Int -> Int -> Int -> Int
+forceBitMaskMismatch n m mask =
+
+
+determineInnerRelation : InnerType v -> InnerType v -> InnerRelation
+determineInnerRelation l r =
+    let kl = r.key `Bitwise.xor` r.branchingBit -- this forces a mismatch at r's branchingbit at the latest
+        kr = l.key `Bitwise.xor` l.branchingbit
+    prefix = lcp l.
 
 {-| Combine two dictionaries. If there is a collision, preference is given
 to the first dictionary. -}
 union : IntDict v -> IntDict v -> IntDict v
-union t1 t2 =
+union d1 d2 =
+    let insertNoReplace new old =
+            case old of
+                Just v -> v
+                Nothing -> new
+    case (d1, d2) ->
+        (Empty, r) -> r
+        (l, Empty) -> l
+        (Leaf l, r) -> insert l.key l.value r
+        (l, Leaf r) -> update r.key insertNoReplace l
+        (Inner l, Inner r) ->
+            if | l.prefix == r.prefix -> -- safe, because unmasked bits are 0
+                    {- Same prefix, merge sub trees -}
+                    { l | left <- union l.left r.left, right <- union l.right r.right }
+               | 
+
     foldl insert t2 t1
 
 
 {-| Keep a key-value pair when its key appears in the second dictionary.
 Preference is given to values in the first dictionary. -}
 intersect : IntDict v -> IntDict v -> IntDict v
-intersect t1 t2 =
+intersect d1 d2 =
     filter (\k _ -> k `member` t2) t1
 
 
 {-| Keep a key-value pair when its key does not appear in the second dictionary.
 Preference is given to the first dictionary. -}
 diff : IntDict v -> IntDict v -> IntDict v
-diff t1 t2 =
+diff d1 d2 =
     foldl (\k v t -> remove k t) t1 t2
 
 
