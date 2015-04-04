@@ -9,23 +9,26 @@ module IntDict
     , toString'
     ) where
 
+
 {-| `IntDict` is an optimized version of a `Dict` with `Int` as key type. 
 
-Its API is modeled `Dict`, so it can mostly regarded as a drop-in replacement[1].
+Its API is modeled `Dict`, so it can be regarded as a drop-in replacement.
 If you are comfortable with `Dict`, working with `IntDict` should be a breeze!
 
 #Technicalities
+
+Since JavaScript's number type is kind of messed up, Elm's `Int` is not particularly
+well-behaved wrt. bitwise operations. Currently, JS supports 32 bit integers, so there
+probably enough room for key picks. **However, when sanitizing user input, it is mandatory
+that a prior `isValidKey` or one of the safe versions in `IntDict.Safe` is used!** This is
+to prevent the overflow behavior.
 
 This library is inspired by Haskells [IntMap](http://hackage.haskell.org/package/containers-0.2.0.1/docs/Data-IntMap.html), 
 which in turn implements Okasaki and Gill's [Fast mergable integer maps](http://ittc.ku.edu/~andygill/papers/IntMap98.pdf).
 
 As noted in the references, here are some runtimes (W is the number of bits in `Int`, a constant!):
 
-*O(min(n, W))*: `insert`, `update`, `remove`, `get`, `member` 
-
-[1] with the exception of giving no guarantee on the ordering of the lists
-returned by various functions such as `fromList`, `keys` and `values`.
-Also traversal order such as with `foldl` and `foldr` is unspecified in the same way.
+*O(min(n, W))*: `insert`, `update`, `remove`, `get`, `member`
 
 # Build
 @docs empty, singleton, insert, update, remove
@@ -39,6 +42,7 @@ Also traversal order such as with `foldl` and `foldr` is unspecified in the same
 @docs map, foldl, foldr, filter, partition
 
 -}
+
 
 import Bitwise
 import Maybe (Maybe (..))
@@ -57,16 +61,26 @@ type IntDict v
     | Inner { prefix : KeyPrefix, left : IntDict v, right : IntDict v }
 
 
+{-| Validates that a given integer is usable as a key.
+This is necessary due to JavaScript's weird number type.
+Basically this assures that we can use the functions
+from `Bitwise` without risking integer overflow.
+
+**This function is a necessity for sanitizing user input!** Alternatively,
+use the safe functions from `IntDict.Safe` which perform the check for you.
+
+As with the current version of JavaScript (2015), only 32 bit signed integers are supported.
+If this ever changes, contact me! Certain parts of the implementation depend on this! -}
 isValidKey : Int -> Bool
-isValidKey n =              -- perform some dirty JS magic to turn the double
-    n `Bitwise.or` 0 == n   -- into an integer. We can then check for overflow.
+isValidKey k =              -- perform some dirty JS magic to turn the double
+    k `Bitwise.or` 0 == k   -- into an integer. We can then check for overflow.
                             -- This seems easier than checking for 32 bits.
                             -- `or` 0 is similar to `mod` <32bits>
 
 
 -- SMART CONSTRUCTORS
 
-
+-- not exported
 inner : KeyPrefix -> IntDict v -> IntDict v -> IntDict v
 inner p l r =
     case (l, r) of
@@ -78,7 +92,7 @@ inner p l r =
             , right = r
             }
 
-
+-- exported as the singleton alias
 leaf : Int -> v -> IntDict v
 leaf k v = Leaf
     { key = k
@@ -101,72 +115,85 @@ prefixMatches p n =
     n `Bitwise.and` bitMask p == p.prefixBits
 
 
-isBranchingBitSet : KeyPrefix -> Int -> Bool
-isBranchingBitSet p n =
-    n `Bitwise.and` p.branchingBit /= 0
+{- Clear all bits other than the highest in n.
+Assumes n to be positive! For implementation notes, see [this](http://aggregate.org/MAGIC/#Most Significant 1 Bit).
+-}
+highestBitSet : Int -> Int
+highestBitSet n =
+    let shiftOr n' shift = n' `Bitwise.or` (n' `Bitwise.shiftRightLogical` shift)
+        n1 = shiftOr n 1 
+        n2 = shiftOr n1 2
+        n3 = shiftOr n2 4
+        n4 = shiftOr n3 8
+        n5 = shiftOr n4 16
+        -- n6 = shiftOr n5 32 -- 64 bit support?!
+        -- n5 has the same msb set as diff. However, all
+        -- bits below the msb are also 1! This means we can
+        -- do the following to get the msb:
+    in n5 `Bitwise.and` Bitwise.complement (n5 `Bitwise.shiftRightLogical` 1)
 
 
-{-| Compute the longest common prefix of two keys.
+{- Compute the longest common prefix of two keys.
 Returns 0 as branchingBit if equal.
 
 Find the highest bit not set in
 
-    diff = x `xor` y -- 0b011001 `xor` 0b011010 = 0b000011
-    
-via http://aggregate.org/MAGIC/#Most Significant 1 Bit
+    diff = x `xor` y -- 0b011001 `xor` 0b011010 = 0b000011 
+
 -}
 lcp : Int -> Int -> KeyPrefix
 lcp x y =
     let diff = x `Bitwise.xor` y
-        (&) = Bitwise.and
-        (>>>) = Bitwise.shiftRightLogical
-        (.|.) = Bitwise.or
-        shiftOr d shift = d .|. (d >>> shift)
-        d1 = shiftOr diff 1 
-        d2 = shiftOr d1 2
-        d3 = shiftOr d2 4
-        d4 = shiftOr d3 8
-        d5 = shiftOr d4 16
-        -- d6 = shiftOr d5 32 -- 64 bit support?!
-        -- d5 has the same msb set as diff. However, all
-        -- bits below the msb are also 1! This means we can
-        -- do the following to get the msb:
-        branchingBit = d5 & Bitwise.complement (d5 >>> 1)
-        mask = bitMask { prefixBits = 0, branchingBit = branchingBit } -- feels hacky
-        prefixBits = x & mask -- should equal y & mask
-    in 
-        { prefixBits = prefixBits
-        , branchingBit = branchingBit 
-        }
+        prefix = { prefixBits = 0, branchingBit = highestBitSet diff }
+        mask = bitMask prefix   -- feels hacky, because prefixBits isn't yet set
+        prefixBits = x `Bitwise.and` mask   -- should equal y & mask
+    in { prefix | prefixBits <- prefixBits }  -- branchingBit is already set
+
+
+signBit : Int
+signBit =
+    highestBitSet -1 
+
+isBranchingBitSet : KeyPrefix -> Int -> Bool
+isBranchingBitSet p n =
+    let n' = n `Bitwise.xor` signBit -- This is a hack that fixes the ordering of keys.
+    in n' `Bitwise.and` p.branchingBit /= 0
 
 
 -- BUILD
 
 
+{-| Create an empty dictionary. -}
 empty : IntDict v
 empty = Empty
 
 
+{-| Create a dictionary with one key-value pair. -}
 singleton : Int -> v -> IntDict v
-singleton k v =
-    leaf k v
+singleton key value =
+    leaf key value
 
 
+{-| Insert a key-value pair into a dictionary. Replaces value when there is
+a collision. -}
 insert : Int -> v -> IntDict v -> IntDict v
-insert k v dict =
-    update k (always (Just v)) dict
+insert key value dict =
+    update key (always (Just value)) dict
 
 
+{-| Remove a key-value pair from a dictionary. If the key is not found,
+no changes are made. -}
 remove : Int -> IntDict v -> IntDict v
-remove k dict =
-    update k (always Nothing) dict
+remove key dict =
+    update key (always Nothing) dict
 
 
+{-| Update the value of a dictionary for a specific key with a given function. -}
 update : Int -> (Maybe v -> Maybe v) -> IntDict v -> IntDict v
-update k alter dict =
+update key alter dict =
     let alteredNode v = 
             case alter v of                                     -- handle this centrally
-                Just v' -> leaf k v'
+                Just v' -> leaf key v'
                 Nothing -> empty                                -- The inner constructor will do the rest
 
         join (k1, d1) (k2, d2) =                                -- precondition: k1 /= k2
@@ -179,43 +206,47 @@ update k alter dict =
         Empty -> 
            alteredNode Nothing
         Leaf l ->
-            if l.key == k 
+            if l.key == key 
             then alteredNode (Just l.value)                     -- This updates or removes the leaf with the same key
-            else join (k, alteredNode Nothing) (l.key, dict)    -- This potentially inserts a new node
+            else join (key, alteredNode Nothing) (l.key, dict)    -- This potentially inserts a new node
         Inner i ->
-            if prefixMatches i.prefix k
-            then if isBranchingBitSet i.prefix k
-                 then inner i.prefix i.left (update k alter i.right)
-                 else inner i.prefix (update k alter i.left) i.right
+            if prefixMatches i.prefix key
+            then if isBranchingBitSet i.prefix key
+                 then inner i.prefix i.left (update key alter i.right)
+                 else inner i.prefix (update key alter i.left) i.right
             else -- we have to join a new leaf with the current diverging Inner node
-                join (k, alteredNode Nothing) (i.prefix.prefixBits, dict)
+                join (key, alteredNode Nothing) (i.prefix.prefixBits, dict)
 
 
 -- QUERY
 
 
+{-| Determine if a key is in a dictionary. -}
 member : Int -> IntDict v -> Bool
-member k dict = 
-    case get k dict of
+member key dict = 
+    case get key dict of
         Just _ -> True
         Nothing -> False
 
 
+{-| Get the value associated with a key. If the key is not found, return
+`Nothing`. This is useful when you are not sure if a key will be in the
+dictionary. -}
 get : Int -> IntDict v -> Maybe v
-get k dict =
+get key dict =
     case dict of
         Empty ->
             Nothing
         Leaf l ->
-            if l.key == k
+            if l.key == key
             then Just l.value
             else Nothing
         Inner i ->
-            if not (prefixMatches i.prefix k)
+            if not (prefixMatches i.prefix key)
             then Nothing
-            else if isBranchingBitSet i.prefix k -- continue in left or right branch, 
-                 then get k i.right              -- depending on whether the branching 
-                 else get k i.left               -- bit is set in the key
+            else if isBranchingBitSet i.prefix key -- continue in left or right branch, 
+                 then get key i.right              -- depending on whether the branching 
+                 else get key i.left               -- bit is set in the key
 
 
 -- TRANSFORM
@@ -231,6 +262,7 @@ filter predicate dict =
     in foldl add empty dict
 
 
+{-| Apply a function to all values in a dictionary. -}
 map : (Int -> a -> b) -> IntDict a -> IntDict b
 map f dict =
     case dict of
@@ -238,7 +270,8 @@ map f dict =
         Leaf l -> leaf l.key (f l.key l.value)
         Inner i -> Inner { i | left <- map f i.left, right <- map f i.right }
 
-
+{-| Fold over the key-value pairs in a dictionary, in order from lowest
+key to highest key. -}
 foldl : (Int -> v -> a -> a) -> a -> IntDict v -> a
 foldl f acc dict =
     case dict of
@@ -248,7 +281,8 @@ foldl f acc dict =
         Inner i ->
             foldl f (foldl f acc i.left) i.right
 
-
+{-| Fold over the key-value pairs in a dictionary, in order from highest
+key to lowest key. -}
 foldr : (Int -> v -> a -> a) -> a -> IntDict v -> a
 foldr f acc dict =
     case dict of
@@ -261,8 +295,7 @@ foldr f acc dict =
 
 {-| Partition a dictionary according to a predicate. The first dictionary
 contains all key-value pairs which satisfy the predicate, and the second
-contains the rest.
--}
+contains the rest. -}
 partition : (Int -> v -> Bool) -> IntDict v -> (IntDict v, IntDict v)
 partition predicate dict =
     let add key value (t1, t2) =
@@ -312,19 +345,23 @@ values dict =
     foldr (\key value valueList -> value :: valueList) [] dict
 
 
+{-| Convert a dictionary into an association list of key-value pairs. -}
+toList : IntDict v -> List (Int, v)
+toList dict = 
+    foldr (\key value list -> (key, value) :: list) [] dict
+
+
+{-| Convert an association list into a dictionary. -}
 fromList : List (Int, v) -> IntDict v
 fromList pairs =
     let insert' (k, v) dict = insert k v dict
     in List.foldl insert' empty pairs
 
 
-toList : IntDict v -> List (Int, v)
-toList dict = 
-    foldr (\key value list -> (key, value) :: list) [] dict
-
-
 -- STRING REPRESENTATION
 
 
+{-| Generates a string representation similar to what `toString` 
+generates for `Dict`. -}
 toString' : IntDict v -> String
 toString' dict = "IntDict.fromList " ++ toString (toList dict)
