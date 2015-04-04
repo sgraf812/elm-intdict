@@ -326,9 +326,9 @@ type InnerRelation v
     | Siblings { parentPrefix : KeyPrefix, l : InnerType v, r : InnerType v }
 
 
-forceBitMaskMismatch : Int -> Int -> Int -> Int
+forceBitMaskMismatch : KeyPrefix -> KeyPrefix -> Int
 forceBitMaskMismatch n m mask =
-
+    let 
 
 determineInnerRelation : InnerType v -> InnerType v -> InnerRelation
 determineInnerRelation l r =
