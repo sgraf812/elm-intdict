@@ -29,7 +29,7 @@ which in turn implements Okasaki and Gill's [Fast mergable integer maps](http://
 As noted in the references, here are some runtimes (W is the number of bits in `Int`, a constant!):
 
 *O(min(n, W))*: `insert`, `update`, `remove`, `get`, `member`
-*O(n, m)*: `union`, `intersection`, `difference`
+*O(n, m)*: `union`, `intersection`, `diff`
 
 where *n* and *m* are the sizes of the first and second dictionary respectively and *W* 
 is the number of bits in `Int` (so a constant with current value 32).
@@ -371,9 +371,9 @@ union d1 d2 =
         (l, Empty) -> l
         (Leaf l, r) -> insert l.key l.value r
         (l, Leaf r) -> update r.key (insertNoReplace r.value) l
-        (Inner l, Inner r) -> case determineInnerRelation l r of
+        (Inner i1, Inner i2) -> case determineInnerRelation i1 i2 of
             Same -> -- Merge both left and right sub trees
-                Inner { l | left <- union l.left r.left, right <- union l.right r.right }
+                Inner { i1 | left <- union i1.left i2.left, right <- union i1.right i2.right }
             RightChild {p,r} -> -- Merge with the right sub tree
                 Inner { p | right <- union p.right (Inner r) } 
             LeftChild {p,l} -> -- Merge with the left sub tree
@@ -386,14 +386,48 @@ union d1 d2 =
 Preference is given to values in the first dictionary. -}
 intersect : IntDict v -> IntDict v -> IntDict v
 intersect d1 d2 =
-    filter (\k _ -> k `member` d2) d1
+    case (d1, d2) of
+        (Empty, _) -> Empty
+        (_, Empty) -> Empty
+        (Leaf l, r) -> if member l.key r then d1 else Empty
+        (l, Leaf r) -> case get r.key l of
+            Just v -> leaf r.key v
+            Nothing -> Empty
+        (Inner i1, Inner i2) -> case determineInnerRelation i1 i2 of
+            Same -> -- Intersect both left and right sub trees
+                Inner { i1 | left <- intersect i1.left i2.left, right <- intersect i1.right i2.right }
+            RightChild {p} ->
+                if p == i1
+                then intersect i1.right d2
+                else intersect d1 i2.right
+            LeftChild {p} ->
+                if p == i1
+                then intersect i1.left d2
+                else intersect d1 i2.left
+            Siblings _ -> Empty -- We have no common keys
 
 
 {-| Keep a key-value pair when its key does not appear in the second dictionary.
 Preference is given to the first dictionary. -}
 diff : IntDict v -> IntDict v -> IntDict v
 diff d1 d2 =
-    foldl (\k v t -> remove k t) d1 d2
+    case (d1, d2) of
+        (Empty, _) -> Empty
+        (l, Empty) -> l
+        (Leaf l, r) -> if member l.key r then Empty else d1
+        (l, Leaf r) -> remove r.key l
+        (Inner i1, Inner i2) -> case determineInnerRelation i1 i2 of
+            Same -> -- Diff both left and right sub trees
+                Inner { i1 | left <- diff i1.left i2.left, right <- diff i1.right i2.right }
+            RightChild {p} ->
+                if p == i1
+                then Inner { i1 | right <- diff i1.right d2 }
+                else diff d1 i2.right
+            LeftChild {p} -> 
+                if p == i1
+                then Inner { i1 | left <- diff i1.left d2 }
+                else diff d1 i2.left
+            Siblings _ -> d1 -- d1 and d2 contain different keys
 
 
 -- LISTS
