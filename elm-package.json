@@ -4,9 +4,9 @@
     "repository": "https://github.com/sgraf812/elm-intdict.git",
     "license": "MIT",
     "source-directories": [
-        "./src"
+        "src"
     ],
-    "exposed-modules": ["IntDict"],
+    "exposed-modules": ["IntDict", "IntDict.Safe"],
     "dependencies": {
         "elm-lang/core": "1.1.1 <= v < 2.0.0"
     }
