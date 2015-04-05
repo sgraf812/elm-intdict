@@ -29,6 +29,10 @@ which in turn implements Okasaki and Gill's [Fast mergable integer maps](http://
 As noted in the references, here are some runtimes (W is the number of bits in `Int`, a constant!):
 
 *O(min(n, W))*: `insert`, `update`, `remove`, `get`, `member`
+*O(n, m)*: `union`, `intersection`, `difference`
+
+where *n* and *m* are the sizes of the first and second dictionary respectively and *W* 
+is the number of bits in `Int` (so a constant with current value 32).
 
 # Build
 @docs empty, singleton, insert, update, remove
@@ -153,7 +157,7 @@ lcp : Int -> Int -> KeyPrefix
 lcp x y =
     let diff = x `Bitwise.xor` y
         branchingBit = highestBitSet diff 
-        mask = higherBitMask prefix   -- feels hacky, because prefixBits isn't yet set
+        mask = higherBitMask branchingBit
         prefixBits = x `Bitwise.and` mask   -- should equal y & mask
     in 
         { prefixBits = prefixBits
@@ -309,10 +313,10 @@ contains all key-value pairs which satisfy the predicate, and the second
 contains the rest. -}
 partition : (Int -> v -> Bool) -> IntDict v -> (IntDict v, IntDict v)
 partition predicate dict =
-    let add key value (t1, t2) =
+    let add key value (d1, d2) =
             if predicate key value
-                then (insert key value t1, t2)
-                else (t1, insert key value t2)
+                then (insert key value d1, d2)
+                else (d1, insert key value d2)
     in
         foldl add (empty, empty) dict
 
@@ -325,16 +329,34 @@ type InnerRelation v
     | RightChild { p : InnerType v, r : InnerType v }
     | Siblings { parentPrefix : KeyPrefix, l : InnerType v, r : InnerType v }
 
+{-  Take bits from a or b, depending on the value of the bit in that position in mask.
+0 -> a, 1 -> b. Implemented as a & ~mask | b & mask -}
+combineBits : Int -> Int -> Int -> Int
+combineBits a b mask =
+    Bitwise.or
+        (Bitwise.and a (Bitwise.complement mask))
+        (Bitwise.and b mask)
 
-forceBitMaskMismatch : KeyPrefix -> KeyPrefix -> Int
-forceBitMaskMismatch n m mask =
-    let 
-
-determineInnerRelation : InnerType v -> InnerType v -> InnerRelation
+{-  While merging/uniting 2 inner nodes, we encounter the 4 possible base cases
+represented by InnerRelation. This function computes that relation. -}
+determineInnerRelation : InnerType v -> InnerType v -> InnerRelation v
 determineInnerRelation l r =
-    let kl = r.key `Bitwise.xor` r.branchingBit -- this forces a mismatch at r's branchingbit at the latest
-        kr = l.key `Bitwise.xor` l.branchingbit
-    prefix = lcp l.
+    let lp = l.prefix
+        rp = r.prefix
+        mask = highestBitSet (max lp.branchingBit rp.branchingBit) -- this is the region where we want to force different bits
+        modifiedRightPrefix = combineBits rp.prefixBits (Bitwise.complement lp.prefixBits) mask
+        prefix = lcp lp.prefixBits modifiedRightPrefix -- l.prefixBits and modifiedRightPrefix are guaranteed to be different
+        parentOf p c =
+            if isBranchingBitSet p.prefix c.prefix.prefixBits
+            then RightChild { p = p, r = c }
+            else LeftChild { p = p, l = c }
+    in if | l.prefix == r.prefix -> Same
+          | prefix == l.prefix -> l `parentOf` r
+          | prefix == r.prefix -> r `parentOf` l
+          | otherwise -> 
+                if isBranchingBitSet prefix rp.prefixBits
+                then Siblings { parentPrefix = prefix, l = l, r = r }
+                else Siblings { parentPrefix = prefix, l = r, r = l }
 
 {-| Combine two dictionaries. If there is a collision, preference is given
 to the first dictionary. -}
@@ -342,34 +364,36 @@ union : IntDict v -> IntDict v -> IntDict v
 union d1 d2 =
     let insertNoReplace new old =
             case old of
-                Just v -> v
-                Nothing -> new
-    case (d1, d2) ->
+                Just _ -> old
+                Nothing -> Just new
+    in case (d1, d2) of
         (Empty, r) -> r
         (l, Empty) -> l
         (Leaf l, r) -> insert l.key l.value r
-        (l, Leaf r) -> update r.key insertNoReplace l
-        (Inner l, Inner r) ->
-            if | l.prefix == r.prefix -> -- safe, because unmasked bits are 0
-                    {- Same prefix, merge sub trees -}
-                    { l | left <- union l.left r.left, right <- union l.right r.right }
-               | 
-
-    foldl insert t2 t1
+        (l, Leaf r) -> update r.key (insertNoReplace r.value) l
+        (Inner l, Inner r) -> case determineInnerRelation l r of
+            Same -> -- Merge both left and right sub trees
+                Inner { l | left <- union l.left r.left, right <- union l.right r.right }
+            RightChild {p,r} -> -- Merge with the right sub tree
+                Inner { p | right <- union p.right (Inner r) } 
+            LeftChild {p,l} -> -- Merge with the left sub tree
+                Inner { p | left <- union p.left (Inner l) } 
+            Siblings {parentPrefix,l,r} -> -- Create a new inner node with l and r as sub trees
+                Inner { prefix = parentPrefix, left = Inner l, right = Inner r } 
 
 
 {-| Keep a key-value pair when its key appears in the second dictionary.
 Preference is given to values in the first dictionary. -}
 intersect : IntDict v -> IntDict v -> IntDict v
 intersect d1 d2 =
-    filter (\k _ -> k `member` t2) t1
+    filter (\k _ -> k `member` d2) d1
 
 
 {-| Keep a key-value pair when its key does not appear in the second dictionary.
 Preference is given to the first dictionary. -}
 diff : IntDict v -> IntDict v -> IntDict v
 diff d1 d2 =
-    foldl (\k v t -> remove k t) t1 t2
+    foldl (\k v t -> remove k t) d1 d2
 
 
 -- LISTS
