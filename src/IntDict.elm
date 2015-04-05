@@ -10,12 +10,14 @@ module IntDict
     ) where
 
 
-{-| `IntDict` is an optimized version of a `Dict` with `Int` as key type. 
+{-| # IntDict [![Build Status](https://travis-ci.org/sgraf812/elm-intdict.svg)](https://travis-ci.org/sgraf812/elm-intdict)
+
+`IntDict` is an optimized version of a `Dict` with `Int` as key type. 
 
 Its API is modeled `Dict`, so it can be regarded as a drop-in replacement.
 If you are comfortable with `Dict`, working with `IntDict` should be a breeze!
 
-#Technicalities
+# Technicalities
 
 Since JavaScript's number type is kind of messed up, Elm's `Int` is not particularly
 well-behaved wrt. bitwise operations. Currently, JS supports 32 bit integers, so there
