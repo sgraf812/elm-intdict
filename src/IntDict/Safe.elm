@@ -12,6 +12,8 @@ to prevent integer overflows with JavaScripts number type.
 Prior to delegating to their 'unsafe' equivalent, these functions verify
 the validity of the key via `IntDict.isValidKey`.
 
+# Return type
+@docs InvalidKey, SafeKeyResult
 # Build
 @docs safeInsert, safeUpdate, safeRemove
 # Query
