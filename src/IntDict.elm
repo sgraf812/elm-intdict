@@ -13,11 +13,11 @@ module IntDict
 {-| # IntDict
 
 This module exposes the same API as `Dict`.
-    
+
 # Technicalities
 
 Since JavaScript's number type is kind of messed up, Elm's `Int` is not particularly
-well-behaved wrt. bitwise operations. Currently, JS supports 32 bit integers, so there
+well-behaved wrt. bitwise operations. Currently, JS supports 32 bit integers, so there is
 probably enough room for key picks. **However, when sanitizing user input, it is mandatory
 that a prior `isValidKey` or one of the safe versions in `IntDict.Safe` is used!** This is
 to prevent the overflow behavior.
@@ -25,9 +25,10 @@ to prevent the overflow behavior.
 This library is inspired by Haskells [IntMap](http://hackage.haskell.org/package/containers-0.2.0.1/docs/Data-IntMap.html), 
 which in turn implements Okasaki and Gill's [Fast mergable integer maps](http://ittc.ku.edu/~andygill/papers/IntMap98.pdf).
 
-As noted in the [references](http://ittc.ku.edu/~andygill/papers/IntMap98.pdf), here are some runtimes (W is the number of bits in `Int`, a constant!):
+As noted in the [references](http://ittc.ku.edu/~andygill/papers/IntMap98.pdf), here are some runtimes:
 
 *O(min(n, W))*: `insert`, `update`, `remove`, `get`, `member`
+
 *O(n + m)*: `union`, `intersection`, `diff`
 
 where *n* and *m* are the sizes of the first and second dictionary respectively and *W* 
