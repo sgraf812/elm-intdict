@@ -10,13 +10,10 @@ module IntDict
     ) where
 
 
-{-| # IntDict [![Build Status](https://travis-ci.org/sgraf812/elm-intdict.svg)](https://travis-ci.org/sgraf812/elm-intdict)
+{-| # IntDict
 
-`IntDict` is an optimized version of a `Dict` with `Int` as key type. 
-
-Its API is modeled `Dict`, so it can be regarded as a drop-in replacement.
-If you are comfortable with `Dict`, working with `IntDict` should be a breeze!
-
+This module exposes the same API as `Dict`.
+    
 # Technicalities
 
 Since JavaScript's number type is kind of messed up, Elm's `Int` is not particularly
@@ -28,10 +25,10 @@ to prevent the overflow behavior.
 This library is inspired by Haskells [IntMap](http://hackage.haskell.org/package/containers-0.2.0.1/docs/Data-IntMap.html), 
 which in turn implements Okasaki and Gill's [Fast mergable integer maps](http://ittc.ku.edu/~andygill/papers/IntMap98.pdf).
 
-As noted in the references, here are some runtimes (W is the number of bits in `Int`, a constant!):
+As noted in the [references](http://ittc.ku.edu/~andygill/papers/IntMap98.pdf), here are some runtimes (W is the number of bits in `Int`, a constant!):
 
 *O(min(n, W))*: `insert`, `update`, `remove`, `get`, `member`
-*O(n, m)*: `union`, `intersection`, `diff`
+*O(n + m)*: `union`, `intersection`, `diff`
 
 where *n* and *m* are the sizes of the first and second dictionary respectively and *W* 
 is the number of bits in `Int` (so a constant with current value 32).
