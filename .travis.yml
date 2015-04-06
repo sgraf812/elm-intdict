@@ -1,7 +1,6 @@
 language: haskell
 install:  
   - cd tests
-  - cabal sandbox init
   - cabal install elm-make
   - cabal install elm-package
   - curl https://raw.githubusercontent.com/maxsnew/IO/master/elm-io.sh > elm-io.sh
