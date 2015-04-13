@@ -22,15 +22,15 @@ the validity of the key via `IntDict.isValidKey`.
 -}
 
 
-import IntDict (..)
+import IntDict exposing (..)
 
 
-{-| An error type signaling and invalid key. -}
+{-| An error type signaling an invalid key. -}
 type InvalidKey = InvalidKey
 
 
 {-| A value of this type is returned by all functions in this module. 
-See the core libraries `Result` documentation for how to cope with it. -}
+See the core libraries' `Result` documentation for how to cope with it. -}
 type alias SafeKeyResult a = Result InvalidKey a
 
 

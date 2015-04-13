@@ -49,7 +49,7 @@ is the number of bits in `Int` (so a constant with current value 32).
 
 
 import Bitwise
-import Maybe (Maybe (..))
+import Maybe exposing (Maybe (..))
 import List
 
 
