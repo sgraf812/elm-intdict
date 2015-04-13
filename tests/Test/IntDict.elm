@@ -2,13 +2,13 @@ module Test.IntDict (tests) where
 
 {-| Copied and modified from `Dict`s test suite. -}
 
-import Basics (..)
+import Basics exposing (..)
 import IntDict
 import List
-import Maybe (..)
+import Maybe exposing (..)
 
-import ElmTest.Assertion (..)
-import ElmTest.Test (..)
+import ElmTest.Assertion exposing (..)
+import ElmTest.Test exposing (..)
 
 numbers : IntDict.IntDict String
 numbers = IntDict.fromList [ (2, "2"), (3, "3") ]
