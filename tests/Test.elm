@@ -5,10 +5,10 @@ import Signal exposing (..)
 
 import ElmTest.Assertion as A
 import ElmTest.Run as R
-import ElmTest.Runner.Console (runDisplay)
+import ElmTest.Runner.Console exposing (runDisplay)
 import ElmTest.Test exposing (..)
 import IO.IO exposing (..)
-import IO.Runner (Request, Response)
+import IO.Runner exposing (Request, Response)
 import IO.Runner as Run
 
 import Test.IntDict as IntDict
