@@ -2,7 +2,7 @@ module IntDict
     ( IntDict
     , isValidKey
     , empty, singleton, insert, update, remove
-    , member, get
+    , isEmpty, size, member, get
     , filter, map, foldl, foldr, partition
     , union, intersect, diff
     , keys, values, toList, fromList
@@ -37,7 +37,7 @@ is the number of bits in `Int` (so a constant with current value 32).
 # Build
 @docs empty, singleton, insert, update, remove
 # Query
-@docs member, get
+@docs isEmpty, member, get
 # Combine
 @docs union, intersect, diff
 # Lists
@@ -64,6 +64,7 @@ type alias InnerType v =
     { prefix : KeyPrefix
     , left : IntDict v
     , right : IntDict v
+    , size : Int
     }
 
 
@@ -102,6 +103,7 @@ inner p l r =
             { prefix = p
             , left = l
             , right = r
+            , size = size l + size p
             }
 
 -- exported as the singleton alias
@@ -236,6 +238,23 @@ update key alter dict =
 -- QUERY
 
 
+{-| Check if the dictionary contains no items. -}
+isEmpty : IntDict v -> Bool
+isEmpty dict =
+    case dict of
+        Empty -> True
+        _ -> False
+
+
+{-| The number of items in the dictionary. `O(1)`.-}
+size : IntDict v -> Int
+size dict =
+    case dict of
+        Empty -> 0
+        Leaf _ -> 1
+        Inner i -> i.size
+                       
+
 {-| Determine if a key is in a dictionary. -}
 member : Int -> IntDict v -> Bool
 member key dict = 
@@ -283,7 +302,7 @@ map f dict =
     case dict of
         Empty -> empty
         Leaf l -> leaf l.key (f l.key l.value)
-        Inner i -> Inner { i | left <- map f i.left, right <- map f i.right }
+        Inner i -> inner i.prefix (map f i.left) (map f i.right)
 
 {-| Fold over the key-value pairs in a dictionary, in order from lowest
 key to highest key. -}
@@ -373,13 +392,13 @@ union d1 d2 =
         (l, Leaf r) -> update r.key (insertNoReplace r.value) l
         (Inner i1, Inner i2) -> case determineInnerRelation i1 i2 of
             Same -> -- Merge both left and right sub trees
-                Inner { i1 | left <- union i1.left i2.left, right <- union i1.right i2.right }
+                inner i1.prefix (union i1.left i2.left) (union i1.right i2.right)
             RightChild {p,r} -> -- Merge with the right sub tree
-                Inner { p | right <- union p.right (Inner r) } 
+                inner p.prefix p.left (union p.right (Inner r)) 
             LeftChild {p,l} -> -- Merge with the left sub tree
-                Inner { p | left <- union p.left (Inner l) } 
+                inner p.prefix (union p.left (Inner l)) p.right 
             Siblings {parentPrefix,l,r} -> -- Create a new inner node with l and r as sub trees
-                Inner { prefix = parentPrefix, left = Inner l, right = Inner r } 
+                inner parentPrefix (Inner l) (Inner r) 
 
 
 {-| Keep a key-value pair when its key appears in the second dictionary.
@@ -395,7 +414,7 @@ intersect d1 d2 =
             Nothing -> Empty
         (Inner i1, Inner i2) -> case determineInnerRelation i1 i2 of
             Same -> -- Intersect both left and right sub trees
-                Inner { i1 | left <- intersect i1.left i2.left, right <- intersect i1.right i2.right }
+                inner i1.prefix (intersect i1.left i2.left) (intersect i1.right i2.right)
             RightChild {p} ->
                 if p == i1
                 then intersect i1.right d2
@@ -418,14 +437,14 @@ diff d1 d2 =
         (l, Leaf r) -> remove r.key l
         (Inner i1, Inner i2) -> case determineInnerRelation i1 i2 of
             Same -> -- Diff both left and right sub trees
-                Inner { i1 | left <- diff i1.left i2.left, right <- diff i1.right i2.right }
+                inner i1.prefix (diff i1.left i2.left) (diff i1.right i2.right)
             RightChild {p} ->
                 if p == i1
-                then Inner { i1 | right <- diff i1.right d2 }
+                then inner i1.prefix i1.left (diff i1.right d2)
                 else diff d1 i2.right
             LeftChild {p} -> 
                 if p == i1
-                then Inner { i1 | left <- diff i1.left d2 }
+                then inner i1.prefix (diff i1.left d2) i1.right
                 else diff d1 i2.left
             Siblings _ -> d1 -- d1 and d2 contain different keys
 
