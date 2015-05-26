@@ -37,7 +37,7 @@ is the number of bits in `Int` (so a constant with current value 32).
 # Build
 @docs empty, singleton, insert, update, remove
 # Query
-@docs isEmpty, member, get
+@docs isEmpty, size, member, get
 # Combine
 @docs union, intersect, diff
 # Lists
@@ -103,7 +103,7 @@ inner p l r =
             { prefix = p
             , left = l
             , right = r
-            , size = size l + size p
+            , size = size l + size r
             }
 
 -- exported as the singleton alias
