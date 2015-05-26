@@ -38,6 +38,8 @@ tests =
         , test "member 2" <| assertEqual False (IntDict.member 5234 numbers)
         , test "get 1" <| assertEqual (Just "2") (IntDict.get 2 numbers)
         , test "get 2" <| assertEqual Nothing (IntDict.get 5234 numbers)
+        , test "findMin" <| assertEqual (Just (2, "2")) (IntDict.findMin numbers)
+        , test "findMax" <| assertEqual (Just (3, "3")) (IntDict.findMax numbers)
         ]
       combineTests = suite "combine Tests"
         [ test "union" <| assertEqual numbers (IntDict.union (IntDict.singleton 3 "3") (IntDict.singleton 2 "2"))

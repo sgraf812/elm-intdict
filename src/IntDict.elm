@@ -2,7 +2,7 @@ module IntDict
     ( IntDict
     , isValidKey
     , empty, singleton, insert, update, remove
-    , isEmpty, size, member, get
+    , isEmpty, size, member, get, findMin, findMax
     , filter, map, foldl, foldr, partition
     , union, intersect, diff
     , keys, values, toList, fromList
@@ -37,7 +37,7 @@ is the number of bits in `Int` (so a constant with current value 32).
 # Build
 @docs empty, singleton, insert, update, remove
 # Query
-@docs isEmpty, size, member, get
+@docs isEmpty, size, member, get, findMin, findMax
 # Combine
 @docs union, intersect, diff
 # Lists
@@ -281,6 +281,25 @@ get key dict =
             else if isBranchingBitSet i.prefix key -- continue in left or right branch, 
                  then get key i.right              -- depending on whether the branching 
                  else get key i.left               -- bit is set in the key
+
+
+{-| Find the minimum key and value in the dictionary. -}
+findMin : IntDict v -> Maybe (Int, v)
+findMin dict =
+    case dict of
+        Empty -> Nothing
+        Leaf l -> Just (l.key, l.value)   
+        Inner i -> findMin i.left
+
+
+{-| Find the maximum key and value in the dictionary. -}
+findMax : IntDict v -> Maybe (Int, v)
+findMax dict =
+    case dict of
+        Empty -> Nothing
+        Leaf l -> Just (l.key, l.value)   
+        Inner i -> findMax i.right
+
 
 
 -- TRANSFORM
