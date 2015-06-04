@@ -4,7 +4,7 @@ module IntDict
     , empty, singleton, insert, update, remove
     , member, get
     , filter, map, foldl, foldr, partition
-    , union, intersect, diff
+    , uniteWith, union, intersect, diff
     , keys, values, toList, fromList
     , toString'
     ) where
@@ -29,7 +29,7 @@ As noted in the [references](http://ittc.ku.edu/~andygill/papers/IntMap98.pdf), 
 
 *O(min(n, W))*: `insert`, `update`, `remove`, `get`, `member`
 
-*O(n + m)*: `union`, `intersection`, `diff`
+*O(n + m)*: `uniteWith`, `union`, `intersection`, `diff`
 
 where *n* and *m* are the sizes of the first and second dictionary respectively and *W* 
 is the number of bits in `Int` (so a constant with current value 32).
@@ -39,7 +39,7 @@ is the number of bits in `Int` (so a constant with current value 32).
 # Query
 @docs member, get
 # Combine
-@docs union, intersect, diff
+@docs uniteWith, union, intersect, diff
 # Lists
 @docs keys, values, toList, fromList
 # Transform
@@ -51,6 +51,7 @@ is the number of bits in `Int` (so a constant with current value 32).
 import Bitwise
 import Maybe exposing (Maybe (..))
 import List
+import Debug
 
 
 type alias KeyPrefix =
@@ -358,28 +359,39 @@ determineInnerRelation l r =
                 then Siblings { parentPrefix = prefix, l = l, r = r }
                 else Siblings { parentPrefix = prefix, l = r, r = l }
 
-{-| Combine two dictionaries. If there is a collision, preference is given
-to the first dictionary. -}
-union : IntDict v -> IntDict v -> IntDict v
-union d1 d2 =
-    let insertNoReplace new old =
-            case old of
-                Just _ -> old
-                Nothing -> Just new
+
+{-| `uniteWith merger d1 d2` combines two dictionaries. If there is a collision, `merger` 
+is called with the value from `d1` and that from `d2`. -}
+uniteWith : (v -> v -> v) -> IntDict v -> IntDict v -> IntDict v
+uniteWith merger d1 d2 =
+    let mergeWith left right =
+            case (left, right) of
+                (Just l, Just r) -> Just (merger l r)
+                (Just l, _) -> left
+                (_, Just r) -> right
+                (Nothing, Nothing) ->
+                    Debug.crash "IntDict.uniteWith: mergeWith was called with 2 Nothings. This is a bug in the implementation, please file a bug report!"
     in case (d1, d2) of
         (Empty, r) -> r
         (l, Empty) -> l
-        (Leaf l, r) -> insert l.key l.value r
-        (l, Leaf r) -> update r.key (insertNoReplace r.value) l
+        (Leaf l, r) -> update l.key (\r' -> mergeWith (Just l.value) r') r
+        (l, Leaf r) -> update r.key (\l' -> mergeWith l' (Just r.value)) l
         (Inner i1, Inner i2) -> case determineInnerRelation i1 i2 of
             Same -> -- Merge both left and right sub trees
-                Inner { i1 | left <- union i1.left i2.left, right <- union i1.right i2.right }
+                Inner { i1 | left <- uniteWith merger i1.left i2.left, right <- uniteWith merger i1.right i2.right }
             RightChild {p,r} -> -- Merge with the right sub tree
-                Inner { p | right <- union p.right (Inner r) } 
+                Inner { p | right <- uniteWith merger p.right (Inner r) } 
             LeftChild {p,l} -> -- Merge with the left sub tree
-                Inner { p | left <- union p.left (Inner l) } 
+                Inner { p | left <- uniteWith merger p.left (Inner l) } 
             Siblings {parentPrefix,l,r} -> -- Create a new inner node with l and r as sub trees
                 Inner { prefix = parentPrefix, left = Inner l, right = Inner r } 
+
+            
+{-| Combine two dictionaries. If there is a collision, preference is given
+to the first dictionary. -}
+union : IntDict v -> IntDict v -> IntDict v
+union =
+    uniteWith (\old new -> old)
 
 
 {-| Keep a key-value pair when its key appears in the second dictionary.
