@@ -13,6 +13,9 @@ import ElmTest.Test exposing (..)
 numbers : IntDict.IntDict String
 numbers = IntDict.fromList [ (2, "2"), (3, "3") ]
 
+moreNumbers : IntDict.IntDict String
+moreNumbers = IntDict.fromList [ (2, "2"), (5, "3"), (7, "7"), (45, "45") ]
+
 tests : Test
 tests =
   let buildTests = suite "build Tests"
@@ -26,10 +29,17 @@ tests =
         , test "remove not found" <| assertEqual (IntDict.singleton 1 "v") (IntDict.remove 342 (IntDict.singleton 1 "v"))
         ]
       queryTests = suite "query Tests"
-        [ test "member 1" <| assertEqual True (IntDict.member 2 numbers)
+        [ test "isEmpty - empty is empty" <| assertEqual True (IntDict.isEmpty IntDict.empty)
+        , test "isEmpty - non-empty dict is not empty" <| assertEqual False (IntDict.isEmpty numbers)
+        , test "size 1" <| assertEqual 0 (IntDict.size IntDict.empty)
+        , test "size 2" <| assertEqual 2 (IntDict.size numbers)
+        , test "size 3" <| assertEqual 5 (IntDict.size (numbers `IntDict.union` moreNumbers))
+        , test "member 1" <| assertEqual True (IntDict.member 2 numbers)
         , test "member 2" <| assertEqual False (IntDict.member 5234 numbers)
         , test "get 1" <| assertEqual (Just "2") (IntDict.get 2 numbers)
         , test "get 2" <| assertEqual Nothing (IntDict.get 5234 numbers)
+        , test "findMin" <| assertEqual (Just (2, "2")) (IntDict.findMin numbers)
+        , test "findMax" <| assertEqual (Just (3, "3")) (IntDict.findMax numbers)
         ]
       combineTests = suite "combine Tests"
         [ test "union" <| assertEqual numbers (IntDict.union (IntDict.singleton 3 "3") (IntDict.singleton 2 "2"))
