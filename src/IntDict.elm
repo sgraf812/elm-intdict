@@ -399,12 +399,12 @@ determineInnerRelation l r =
 
 
 {-| `uniteWith merger d1 d2` combines two dictionaries. If there is a collision, `merger` 
-is called with the value from `d1` and that from `d2`. -}
-uniteWith : (v -> v -> v) -> IntDict v -> IntDict v -> IntDict v
+is called with the conflicting key, the value from `d1` and that from `d2`. -}
+uniteWith : (Int -> v -> v -> v) -> IntDict v -> IntDict v -> IntDict v
 uniteWith merger d1 d2 =
-    let mergeWith left right =
+    let mergeWith key left right =
             case (left, right) of
-                (Just l, Just r) -> Just (merger l r)
+                (Just l, Just r) -> Just (merger key l r)
                 (Just l, _) -> left
                 (_, Just r) -> right
                 (Nothing, Nothing) ->
@@ -412,8 +412,8 @@ uniteWith merger d1 d2 =
     in case (d1, d2) of
         (Empty, r) -> r
         (l, Empty) -> l
-        (Leaf l, r) -> update l.key (\r' -> mergeWith (Just l.value) r') r
-        (l, Leaf r) -> update r.key (\l' -> mergeWith l' (Just r.value)) l
+        (Leaf l, r) -> update l.key (\r' -> mergeWith l.key (Just l.value) r') r
+        (l, Leaf r) -> update r.key (\l' -> mergeWith r.key l' (Just r.value)) l
         (Inner i1, Inner i2) -> case determineInnerRelation i1 i2 of
             Same -> -- Merge both left and right sub trees
                 inner i1.prefix (uniteWith merger i1.left i2.left) (uniteWith merger i1.right i2.right)
@@ -429,7 +429,7 @@ uniteWith merger d1 d2 =
 to the first dictionary. -}
 union : IntDict v -> IntDict v -> IntDict v
 union =
-    uniteWith (\old new -> old)
+    uniteWith (\key old new -> old)
 
 
 {-| Keep a key-value pair when its key appears in the second dictionary.
