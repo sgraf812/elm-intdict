@@ -416,11 +416,11 @@ uniteWith merger d1 d2 =
         (l, Leaf r) -> update r.key (\l' -> mergeWith l' (Just r.value)) l
         (Inner i1, Inner i2) -> case determineInnerRelation i1 i2 of
             Same -> -- Merge both left and right sub trees
-                Inner { i1 | left <- uniteWith merger i1.left i2.left, right <- uniteWith merger i1.right i2.right }
+                inner i1.prefix (uniteWith merger i1.left i2.left) (uniteWith merger i1.right i2.right)
             RightChild {p,r} -> -- Merge with the right sub tree
-                Inner { p | right <- uniteWith merger p.right (Inner r) } 
+                inner p.prefix p.left (uniteWith merger p.right (Inner r)) 
             LeftChild {p,l} -> -- Merge with the left sub tree
-                Inner { p | left <- uniteWith merger p.left (Inner l) } 
+                inner p.prefix (uniteWith merger p.left (Inner l)) p.right
             Siblings {parentPrefix,l,r} -> -- Create a new inner node with l and r as sub trees
                 inner parentPrefix (Inner l) (Inner r) 
 
