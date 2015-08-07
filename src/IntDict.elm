@@ -1,4 +1,4 @@
-module IntDict
+module IntDict 
     ( IntDict
     , isValidKey
     , empty, singleton, insert, update, remove
@@ -22,7 +22,7 @@ probably enough room for key picks. **However, when sanitizing user input, it is
 that a prior `isValidKey` or one of the safe versions in `IntDict.Safe` is used!** This is
 to prevent the overflow behavior.
 
-This library is inspired by Haskells [IntMap](http://hackage.haskell.org/package/containers-0.2.0.1/docs/Data-IntMap.html),
+This library is inspired by Haskells [IntMap](http://hackage.haskell.org/package/containers-0.2.0.1/docs/Data-IntMap.html), 
 which in turn implements Okasaki and Gill's [Fast mergable integer maps](http://ittc.ku.edu/~andygill/papers/IntMap98.pdf).
 
 As noted in the [references](http://ittc.ku.edu/~andygill/papers/IntMap98.pdf), here are some runtimes:
@@ -31,11 +31,9 @@ As noted in the [references](http://ittc.ku.edu/~andygill/papers/IntMap98.pdf), 
 
 *O(n + m)*: `union`, `intersection`, `diff`
 
-where *n* and *m* are the sizes of the first and second dictionary respectively and *W*
+where *n* and *m* are the sizes of the first and second dictionary respectively and *W* 
 is the number of bits in `Int` (so a constant with current value 32).
 
-# Data
-@docs IntDict, isValidKey
 # Build
 @docs empty, singleton, insert, update, remove
 # Query
@@ -46,8 +44,6 @@ is the number of bits in `Int` (so a constant with current value 32).
 @docs keys, values, toList, fromList
 # Transform
 @docs map, foldl, foldr, filter, partition
-# String representation
-@docs toString'
 
 -}
 
@@ -64,7 +60,7 @@ type alias KeyPrefix =
 
 
 -- only so that we don't repeat ourselves
-type alias InnerType v =
+type alias InnerType v = 
     { prefix : KeyPrefix
     , left : IntDict v
     , right : IntDict v
@@ -72,9 +68,6 @@ type alias InnerType v =
     }
 
 
-{-| A dictionary mapping `Int`s to values of a type `v`. Analogous to
-`Dict Int v`.
--}
 type IntDict v
     = Empty
     | Leaf { key : Int, value : v }
@@ -142,7 +135,7 @@ Assumes n to be positive! For implementation notes, see [this](http://aggregate.
 highestBitSet : Int -> Int
 highestBitSet n =
     let shiftOr n' shift = n' `Bitwise.or` (n' `Bitwise.shiftRightLogical` shift)
-        n1 = shiftOr n 1
+        n1 = shiftOr n 1 
         n2 = shiftOr n1 2
         n3 = shiftOr n2 4
         n4 = shiftOr n3 8
@@ -159,24 +152,24 @@ Returns 0 as branchingBit if equal.
 
 Find the highest bit not set in
 
-    diff = x `xor` y -- 0b011001 `xor` 0b011010 = 0b000011
+    diff = x `xor` y -- 0b011001 `xor` 0b011010 = 0b000011 
 
 -}
 lcp : Int -> Int -> KeyPrefix
 lcp x y =
     let diff = x `Bitwise.xor` y
-        branchingBit = highestBitSet diff
+        branchingBit = highestBitSet diff 
         mask = higherBitMask branchingBit
         prefixBits = x `Bitwise.and` mask   -- should equal y & mask
-    in
+    in 
         { prefixBits = prefixBits
-        , branchingBit = branchingBit
+        , branchingBit = branchingBit 
         }
 
 
 signBit : Int
 signBit =
-    highestBitSet -1
+    highestBitSet -1 
 
 isBranchingBitSet : KeyPrefix -> Int -> Bool
 isBranchingBitSet p n =
@@ -215,7 +208,7 @@ remove key dict =
 {-| Update the value of a dictionary for a specific key with a given function. -}
 update : Int -> (Maybe v -> Maybe v) -> IntDict v -> IntDict v
 update key alter dict =
-    let alteredNode v =
+    let alteredNode v = 
             case alter v of                                     -- handle this centrally
                 Just v' -> leaf key v'
                 Nothing -> empty                                -- The inner constructor will do the rest
@@ -227,10 +220,10 @@ update key alter dict =
                else inner prefix d2 d1
 
     in case dict of
-        Empty ->
+        Empty -> 
            alteredNode Nothing
         Leaf l ->
-            if l.key == key
+            if l.key == key 
             then alteredNode (Just l.value)                     -- This updates or removes the leaf with the same key
             else join (key, alteredNode Nothing) (l.key, dict)    -- This potentially inserts a new node
         Inner i ->
@@ -260,11 +253,11 @@ size dict =
         Empty -> 0
         Leaf _ -> 1
         Inner i -> i.size
-
+                       
 
 {-| Determine if a key is in a dictionary. -}
 member : Int -> IntDict v -> Bool
-member key dict =
+member key dict = 
     case get key dict of
         Just _ -> True
         Nothing -> False
@@ -285,8 +278,8 @@ get key dict =
         Inner i ->
             if not (prefixMatches i.prefix key)
             then Nothing
-            else if isBranchingBitSet i.prefix key -- continue in left or right branch,
-                 then get key i.right              -- depending on whether the branching
+            else if isBranchingBitSet i.prefix key -- continue in left or right branch, 
+                 then get key i.right              -- depending on whether the branching 
                  else get key i.left               -- bit is set in the key
 
 
@@ -295,7 +288,7 @@ findMin : IntDict v -> Maybe (Int, v)
 findMin dict =
     case dict of
         Empty -> Nothing
-        Leaf l -> Just (l.key, l.value)
+        Leaf l -> Just (l.key, l.value)   
         Inner i -> findMin i.left
 
 
@@ -304,7 +297,7 @@ findMax : IntDict v -> Maybe (Int, v)
 findMax dict =
     case dict of
         Empty -> Nothing
-        Leaf l -> Just (l.key, l.value)
+        Leaf l -> Just (l.key, l.value)   
         Inner i -> findMax i.right
 
 
@@ -398,7 +391,7 @@ determineInnerRelation l r =
     in if | l.prefix == r.prefix -> Same
           | prefix == l.prefix -> l `parentOf` r
           | prefix == r.prefix -> r `parentOf` l
-          | otherwise ->
+          | otherwise -> 
                 if isBranchingBitSet prefix rp.prefixBits
                 then Siblings { parentPrefix = prefix, l = l, r = r }
                 else Siblings { parentPrefix = prefix, l = r, r = l }
@@ -420,11 +413,11 @@ union d1 d2 =
             Same -> -- Merge both left and right sub trees
                 inner i1.prefix (union i1.left i2.left) (union i1.right i2.right)
             RightChild {p,r} -> -- Merge with the right sub tree
-                inner p.prefix p.left (union p.right (Inner r))
+                inner p.prefix p.left (union p.right (Inner r)) 
             LeftChild {p,l} -> -- Merge with the left sub tree
-                inner p.prefix (union p.left (Inner l)) p.right
+                inner p.prefix (union p.left (Inner l)) p.right 
             Siblings {parentPrefix,l,r} -> -- Create a new inner node with l and r as sub trees
-                inner parentPrefix (Inner l) (Inner r)
+                inner parentPrefix (Inner l) (Inner r) 
 
 
 {-| Keep a key-value pair when its key appears in the second dictionary.
@@ -468,7 +461,7 @@ diff d1 d2 =
                 if p == i1
                 then inner i1.prefix i1.left (diff i1.right d2)
                 else diff d1 i2.right
-            LeftChild {p} ->
+            LeftChild {p} -> 
                 if p == i1
                 then inner i1.prefix (diff i1.left d2) i1.right
                 else diff d1 i2.left
@@ -492,7 +485,7 @@ values dict =
 
 {-| Convert a dictionary into an association list of key-value pairs. -}
 toList : IntDict v -> List (Int, v)
-toList dict =
+toList dict = 
     foldr (\key value list -> (key, value) :: list) [] dict
 
 
@@ -506,7 +499,7 @@ fromList pairs =
 -- STRING REPRESENTATION
 
 
-{-| Generates a string representation similar to what `toString`
+{-| Generates a string representation similar to what `toString` 
 generates for `Dict`. -}
 toString' : IntDict v -> String
 toString' dict = "IntDict.fromList " ++ toString (toList dict)
