@@ -29,9 +29,9 @@ tests =
         , test "remove not found" <| assertEqual (IntDict.singleton 1 "v") (IntDict.remove 342 (IntDict.singleton 1 "v"))
         ]
       queryTests = suite "query Tests"
-        [ test "isEmpty - empty is empty" <| assertEqual True (IntDict.isEmpty IntDict.empty)
+        [ test "isEmpty - empty is empty" <| assertEqual True (IntDict.isEmpty empty)
         , test "isEmpty - non-empty dict is not empty" <| assertEqual False (IntDict.isEmpty numbers)
-        , test "size 1" <| assertEqual 0 (IntDict.size IntDict.empty)
+        , test "size 1" <| assertEqual 0 (IntDict.size empty)
         , test "size 2" <| assertEqual 2 (IntDict.size numbers)
         , test "size 3" <| assertEqual 5 (IntDict.size (numbers `IntDict.union` moreNumbers))
         , test "member 1" <| assertEqual True (IntDict.member 2 numbers)
