@@ -1,3 +1,5 @@
-# Copied this right from the core library
-elm-stuff
-tests/test.js
+elm.js
+elm-stuff/
+repl-temp-000.elm
+tests/elm-io.sh
+tests/*.js
