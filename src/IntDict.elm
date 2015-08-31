@@ -425,9 +425,13 @@ uniteWith merger d1 d2 =
             Same -> -- Merge both left and right sub trees
                 inner i1.prefix (uniteWith merger i1.left i2.left) (uniteWith merger i1.right i2.right)
             RightChild {p,r} -> -- Merge with the right sub tree
-                inner p.prefix p.left (uniteWith merger p.right (Inner r))
+                if p == i1 -- We need to maintain the left bias
+                then inner p.prefix p.left (uniteWith merger p.right (Inner r))
+                else inner p.prefix p.left (uniteWith merger (Inner r) p.right)
             LeftChild {p,l} -> -- Merge with the left sub tree
-                inner p.prefix (uniteWith merger p.left (Inner l)) p.right
+                if p == i1
+                then inner p.prefix (uniteWith merger p.left (Inner l)) p.right
+                else inner p.prefix (uniteWith merger (Inner l) p.left) p.right
             Siblings {parentPrefix,l,r} -> -- Create a new inner node with l and r as sub trees
                 inner parentPrefix (Inner l) (Inner r)
 

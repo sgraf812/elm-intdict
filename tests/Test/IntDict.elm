@@ -51,10 +51,26 @@ tests =
         [ test "filter" <| assertEqual (IntDict.singleton 2 "2") (IntDict.filter (\k v -> k == 2) numbers)
         , test "partition" <| assertEqual (IntDict.singleton 2 "2", IntDict.singleton 3 "3") (IntDict.partition (\k v -> k == 2) numbers)
         ]
+      regressionTests = suite "regressions Tests"
+        [ suite "issue #1" <|
+            let a = IntDict.fromList [(4,20),(6,11)]
+                b = IntDict.fromList [(1,0),(2,7),(3,9),(4,22),(6,14)]
+            in
+              [ test "a union b" <|
+                  assertEqual
+                    (IntDict.union a b)
+                    (IntDict.fromList [(1,0),(2,7),(3,9),(4,20),(6,11)])
+              , test "b union a" <|
+                  assertEqual
+                    (IntDict.union b a)
+                    (IntDict.fromList [(1,0),(2,7),(3,9),(4,22),(6,14)])
+              ]
+        ]
   in
     suite "IntDict Tests"
     [ buildTests
     , queryTests
     , combineTests
     , transformTests
+    , regressionTests
     ]
