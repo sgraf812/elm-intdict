@@ -396,13 +396,14 @@ determineInnerRelation l r =
             if isBranchingBitSet p.prefix c.prefix.prefixBits
             then RightChild { p = p, r = c }
             else LeftChild { p = p, l = c }
-    in if | l.prefix == r.prefix -> Same
-          | prefix == l.prefix -> l `parentOf` r
-          | prefix == r.prefix -> r `parentOf` l
-          | otherwise ->
-                if isBranchingBitSet prefix rp.prefixBits
-                then Siblings { parentPrefix = prefix, l = l, r = r }
-                else Siblings { parentPrefix = prefix, l = r, r = l }
+    in 
+        if l.prefix == r.prefix then Same
+        else if prefix == l.prefix then l `parentOf` r
+        else if prefix == r.prefix then r `parentOf` l
+        else
+            if isBranchingBitSet prefix rp.prefixBits
+            then Siblings { parentPrefix = prefix, l = l, r = r }
+            else Siblings { parentPrefix = prefix, l = r, r = l }
 
 
 {-| `uniteWith merger d1 d2` combines two dictionaries. If there is a collision, `merger`
