@@ -3,7 +3,7 @@ module Test (tests) where
 
 import Test.IntDict
 
-import ElmTest.Test exposing (..)
+import ElmTest exposing (..)
 
 
 tests : Test

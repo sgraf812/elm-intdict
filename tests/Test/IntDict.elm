@@ -7,8 +7,7 @@ import IntDict
 import List
 import Maybe exposing (..)
 
-import ElmTest.Assertion exposing (..)
-import ElmTest.Test exposing (..)
+import ElmTest exposing (..)
 
 numbers : IntDict.IntDict String
 numbers = IntDict.fromList [ (2, "2"), (3, "3") ]
