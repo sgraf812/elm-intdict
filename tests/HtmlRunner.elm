@@ -1,10 +1,9 @@
-module Main where
+module Main exposing (..)
 
-import Graphics.Element exposing (Element, leftAligned)
-import ElmTest exposing (stringRunner)
-import Text exposing (fromString)
+import Platform exposing (Program)
+import ElmTest exposing (runSuiteHtml)
 import Test
 
-main : Element
+main : Program Never
 main =
-  leftAligned (fromString (stringRunner Test.tests))
+  runSuiteHtml Test.tests
