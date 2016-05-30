@@ -1,4 +1,4 @@
-module Test.IntDict (tests) where
+module Test.IntDict exposing (tests)
 
 {-| Copied and modified from `Dict`s test suite. -}
 

@@ -1,4 +1,4 @@
-module IntDict
+module IntDict exposing
     ( IntDict
     , isValidKey
     , empty, singleton, insert, update, remove
@@ -7,7 +7,7 @@ module IntDict
     , uniteWith, union, intersect, diff
     , keys, values, toList, fromList
     , toString'
-    ) where
+    )
 
 
 {-| # IntDict

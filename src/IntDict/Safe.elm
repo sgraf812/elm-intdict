@@ -1,9 +1,9 @@
-module IntDict.Safe
+module IntDict.Safe exposing
     ( InvalidKey (..)
     , SafeKeyResult
     , safeInsert, safeRemove, safeUpdate
     , safeMember, safeGet
-    ) where
+    )
 
 
 {-| Safe API wrappers for `IntDict`s build and query operators 

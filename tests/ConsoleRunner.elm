@@ -1,12 +1,9 @@
-module Main where
+module Main exposing (..)
 
-import Task exposing (..)
-
-import ElmTest exposing (..)
-import Console
+import Platform exposing (Program)
+import ElmTest exposing (runSuite)
 
 import Test
 
-port runner : Signal (Task x ())
-port runner =
-  Console.run (consoleRunner Test.tests)
+main : Program Never
+main = runSuite Test.tests
